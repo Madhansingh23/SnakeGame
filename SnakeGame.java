@@ -1,8 +1,9 @@
-// ✅ Updated SnakeGame.java with Multiple Enhancements:
-// - Live Score Display
-// - Pause/Resume (P key)
-// - Game Over Sound (beep)
-// - Save/Load High Score from File
+// ✅ SnakeGame.java — Updated with:
+// - Difficulty Selection (1-Easy, 2-Medium, 3-Hard)
+// - Wrap-around Mode Toggle (W key)
+// - Animated Food Pulse
+// - Sidebar UI Panel with Score, Speed, Status
+// - Theme Toggle (T key)
 
 import javax.swing.*;
 import java.awt.*;
@@ -14,8 +15,10 @@ import java.util.*;
 public class SnakeGame extends JPanel implements ActionListener {
     private final int width, height, cellSize;
     private final Random random = new Random();
-    private boolean gameStarted = false, gameOver = false, paused = false;
-    private int highScore = 0, gameSpeed = 100;
+    private boolean gameStarted = false, gameOver = false, paused = false, showDifficulty = true;
+    private boolean wrapAround = false;
+    private boolean darkTheme = true;
+    private int highScore = 0, gameSpeed = 100, foodPulse = 0, pulseDir = 1;
     private GamePoint food;
     private Direction direction = Direction.RIGHT;
     private Direction newDirection = Direction.RIGHT;
@@ -48,28 +51,39 @@ public class SnakeGame extends JPanel implements ActionListener {
     }
 
     private void handleKeyEvent(int keyCode) {
+        if (showDifficulty) {
+            switch (keyCode) {
+                case KeyEvent.VK_1 -> gameSpeed = 120;
+                case KeyEvent.VK_2 -> gameSpeed = 80;
+                case KeyEvent.VK_3 -> gameSpeed = 50;
+                default -> { return; }
+            }
+            timer.setDelay(gameSpeed);
+            showDifficulty = false;
+            gameStarted = true;
+            return;
+        }
+
         if (!gameStarted && keyCode == KeyEvent.VK_ENTER) {
             gameStarted = true;
         } else if (gameOver && keyCode == KeyEvent.VK_ENTER) {
             gameStarted = false;
             gameOver = false;
+            showDifficulty = true;
             resetGameData();
         } else if (keyCode == KeyEvent.VK_P && gameStarted && !gameOver) {
             paused = !paused;
+        } else if (keyCode == KeyEvent.VK_W) {
+            wrapAround = !wrapAround;
+        } else if (keyCode == KeyEvent.VK_T) {
+            darkTheme = !darkTheme;
+            setBackground(darkTheme ? Color.BLACK : Color.WHITE);
         } else if (!gameOver) {
             switch (keyCode) {
-                case KeyEvent.VK_UP -> {
-                    if (direction != Direction.DOWN) newDirection = Direction.UP;
-                }
-                case KeyEvent.VK_DOWN -> {
-                    if (direction != Direction.UP) newDirection = Direction.DOWN;
-                }
-                case KeyEvent.VK_LEFT -> {
-                    if (direction != Direction.RIGHT) newDirection = Direction.LEFT;
-                }
-                case KeyEvent.VK_RIGHT -> {
-                    if (direction != Direction.LEFT) newDirection = Direction.RIGHT;
-                }
+                case KeyEvent.VK_UP -> { if (direction != Direction.DOWN) newDirection = Direction.UP; }
+                case KeyEvent.VK_DOWN -> { if (direction != Direction.UP) newDirection = Direction.DOWN; }
+                case KeyEvent.VK_LEFT -> { if (direction != Direction.RIGHT) newDirection = Direction.LEFT; }
+                case KeyEvent.VK_RIGHT -> { if (direction != Direction.LEFT) newDirection = Direction.RIGHT; }
             }
         }
     }
@@ -101,16 +115,20 @@ public class SnakeGame extends JPanel implements ActionListener {
         Graphics2D g2d = (Graphics2D) g;
         g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
+        if (showDifficulty) {
+            printMessage(g, "Select Difficulty:\n1 - Easy\n2 - Medium\n3 - Hard");
+            return;
+        }
+
         if (!gameStarted) {
             printMessage(g, "Press ENTER to Begin Game");
             return;
         }
 
-        // Draw food
+        int pulseSize = cellSize / 2 + foodPulse;
         g2d.setColor(Color.RED);
-        g2d.fillOval(food.x + cellSize / 4, food.y + cellSize / 4, cellSize / 2, cellSize / 2);
+        g2d.fillOval(food.x + (cellSize - pulseSize) / 2, food.y + (cellSize - pulseSize) / 2, pulseSize, pulseSize);
 
-        // Draw snake
         int segment = 0;
         for (GamePoint point : snake) {
             if (segment == 0) {
@@ -125,10 +143,14 @@ public class SnakeGame extends JPanel implements ActionListener {
             segment++;
         }
 
-        // Live score
-        g2d.setColor(Color.WHITE);
-        g2d.setFont(new Font("Arial", Font.BOLD, 16));
+        // Sidebar UI Panel
+        g2d.setColor(darkTheme ? Color.LIGHT_GRAY : Color.DARK_GRAY);
+        g2d.setFont(new Font("Consolas", Font.BOLD, 16));
         g2d.drawString("Score: " + (snake.size() - 3), 10, 20);
+        g2d.drawString("Speed: " + (1000 / gameSpeed) + " FPS", 10, 40);
+        g2d.drawString("Wrap: " + (wrapAround ? "ON" : "OFF"), 10, 60);
+        g2d.drawString("Theme: " + (darkTheme ? "Dark" : "Light"), 10, 80);
+        g2d.drawString("[P]ause | [W]rap | [T]heme", 10, 100);
 
         if (paused) {
             printMessage(g, "Game Paused\nPress P to Resume");
@@ -149,7 +171,6 @@ public class SnakeGame extends JPanel implements ActionListener {
         int currentHeight = height / 3;
         Graphics2D g2d = (Graphics2D) g;
         var frc = g2d.getFontRenderContext();
-
         for (String line : message.split("\n")) {
             var layout = new TextLayout(line, g.getFont(), frc);
             var bounds = layout.getBounds();
@@ -162,14 +183,24 @@ public class SnakeGame extends JPanel implements ActionListener {
     private void move() {
         direction = newDirection;
         GamePoint head = snake.peekFirst();
+        int x = head.x;
+        int y = head.y;
 
-        GamePoint newHead = switch (direction) {
-            case UP -> new GamePoint(head.x, head.y - cellSize);
-            case DOWN -> new GamePoint(head.x, head.y + cellSize);
-            case LEFT -> new GamePoint(head.x - cellSize, head.y);
-            case RIGHT -> new GamePoint(head.x + cellSize, head.y);
-        };
+        switch (direction) {
+            case UP -> y -= cellSize;
+            case DOWN -> y += cellSize;
+            case LEFT -> x -= cellSize;
+            case RIGHT -> x += cellSize;
+        }
 
+        if (wrapAround) {
+            if (x < 0) x = width - cellSize;
+            if (x >= width) x = 0;
+            if (y < 0) y = height - cellSize;
+            if (y >= height) y = 0;
+        }
+
+        GamePoint newHead = new GamePoint(x, y);
         snake.addFirst(newHead);
 
         if (newHead.equals(food)) {
@@ -188,16 +219,18 @@ public class SnakeGame extends JPanel implements ActionListener {
 
     private boolean isCollision() {
         GamePoint head = snake.peekFirst();
-        boolean wall = head.x < 0 || head.x >= width || head.y < 0 || head.y >= height;
+        boolean wall = !wrapAround && (head.x < 0 || head.x >= width || head.y < 0 || head.y >= height);
         boolean self = new HashSet<>(snake).size() != snake.size();
         return wall || self;
     }
 
     @Override
     public void actionPerformed(ActionEvent e) {
-        if (gameStarted && !gameOver && !paused) {
+        if (gameStarted && !gameOver && !paused && !showDifficulty) {
             move();
         }
+        foodPulse += pulseDir;
+        if (foodPulse >= 6 || foodPulse <= 0) pulseDir *= -1;
         repaint();
     }
 
