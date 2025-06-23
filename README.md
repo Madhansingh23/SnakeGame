@@ -48,7 +48,7 @@ git clone https://github.com/Madhansingh23/SnakeGame.git
 cd SnakeGame
 javac Main.java SnakeGame.java
 java Main
-
+```
 
 ## 🛠 Setup & Run
 - Setup java with environmental setup 
@@ -66,7 +66,7 @@ SnakeGame/
 ├── Main.java           # Launches the JFrame with SnakeGame panel
 ├── SnakeGame.java      # Main game logic and rendering
 ├── highscore.dat       # Auto-created to save high score (optional)
-
+```
 
 ### 🖼️ Game Setup Preview
 
