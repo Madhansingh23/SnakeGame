@@ -1,10 +1,3 @@
-// ✅ SnakeGame.java — Updated with:
-// - Difficulty Selection (1-Easy, 2-Medium, 3-Hard)
-// - Wrap-around Mode Toggle (W key)
-// - Animated Food Pulse
-// - Sidebar UI Panel with Score, Speed, Status
-// - Theme Toggle (T key)
-
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
